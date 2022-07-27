@@ -6,6 +6,7 @@ def generate_edge_tensor(label, edge_width=3):
     label = label.type(torch.cuda.FloatTensor)
     if len(label.shape) == 2:
         label = label.unsqueeze(0)
+    label = label.squeeze(dim=1)
     n, h, w = label.shape
     edge = torch.zeros(label.shape, dtype=torch.float).cuda()
     # right

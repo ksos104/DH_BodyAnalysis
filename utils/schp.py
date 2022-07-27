@@ -58,7 +58,8 @@ def bn_re_estimate(loader, model):
     model.apply(lambda module: _get_momenta(module, momenta))
     n = 0
     for i_iter, batch in enumerate(loader):
-        images, labels, _ = batch
+        # images, labels, _ = batch
+        images, labels = batch
         b = images.data.size(0)
         momentum = b / (n + b)
         for module in momenta.keys():

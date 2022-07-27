@@ -1,5 +1,8 @@
 **/__pycache__
 
+.neptune/
 data/
-log/
+log*/
 pretrain_model/
+slurm*
+result*/

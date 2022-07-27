@@ -81,6 +81,8 @@ class CriterionAll(nn.Module):
             scale_pred = F.interpolate(input=pred_edge, size=(h, w),
                                        mode='bilinear', align_corners=True)
             if target[3] is None:
+                if target[1].max()==0:
+                    target[1][:,0,0] = 1
                 loss += self.lamda_2 * F.cross_entropy(scale_pred, target[1],
                                                        weights.cuda(), ignore_index=self.ignore_index)
             else:

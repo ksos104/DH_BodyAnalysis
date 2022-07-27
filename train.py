@@ -24,12 +24,24 @@ from torch.utils import data
 
 import networks
 import utils.schp as schp
-from datasets.datasets import LIPDataSet
+# from datasets.datasets import LIPDataSet
+# from datasets.pascal_loader_orig import PascalPartsPerson
+from datasets.datasets_PPP import PascalPartSegmentation
+from datasets.datasets_SURREAL_v2 import SURREAL
 from datasets.target_generation import generate_edge_tensor
 from utils.transforms import BGR2RGB_transform
 from utils.criterion import CriterionAll
 from utils.encoding import DataParallelModel, DataParallelCriterion
 from utils.warmup_scheduler import SGDRScheduler
+
+import neptune.new as neptune
+
+from networks.AugmentCE2P_t2t_vit import t2tnet
+
+npt = neptune.init(
+    project="kaist-cilab/DH-FaceAnalysis",
+    api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4OTQ2MGY0Yi0zMTM2LTQ5ZmEtYjlmOS1lNmQxMTliOTE0MjkifQ==",
+)
 
 
 def get_arguments():
@@ -42,10 +54,12 @@ def get_arguments():
     # Network Structure
     parser.add_argument("--arch", type=str, default='resnet101')
     # Data Preference
-    parser.add_argument("--data-dir", type=str, default='./data/LIP')
-    parser.add_argument("--batch-size", type=int, default=16)
+    # parser.add_argument("--data-dir", type=str, default='/mnt/server8_hard3/msson/datasets/Pascal Part Person')
+    parser.add_argument("--data-dir", type=str, default='/mnt/server14_hard0/msson/datasets/SURREAL/data/ref_cmu')
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--input-size", type=str, default='473,473')
-    parser.add_argument("--num-classes", type=int, default=20)
+    # parser.add_argument("--num-classes", type=int, default=20)
+    parser.add_argument("--num-classes", type=int, default=7)
     parser.add_argument("--ignore-label", type=int, default=255)
     parser.add_argument("--random-mirror", action="store_true")
     parser.add_argument("--random-scale", action="store_true")
@@ -53,9 +67,10 @@ def get_arguments():
     parser.add_argument("--learning-rate", type=float, default=7e-3)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight-decay", type=float, default=5e-4)
-    parser.add_argument("--gpu", type=str, default='0,1,2')
+    # parser.add_argument("--gpu", type=str, default='0,1,2')
+    parser.add_argument("--gpu", type=str, default='2,7')
     parser.add_argument("--start-epoch", type=int, default=0)
-    parser.add_argument("--epochs", type=int, default=150)
+    parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--eval-epochs", type=int, default=10)
     parser.add_argument("--imagenet-pretrain", type=str, default='./pretrain_model/resnet101-imagenet.pth')
     parser.add_argument("--log-dir", type=str, default='./log')
@@ -67,6 +82,29 @@ def get_arguments():
     parser.add_argument("--lambda-e", type=float, default=1, help='edge loss weight')
     parser.add_argument("--lambda-c", type=float, default=0.1, help='segmentation-edge consistency loss weight')
     return parser.parse_args()
+
+
+'''
+    전체 dataset에 대해 i와 u 합산하여 mIoU 계산
+'''
+epsilon = 1e-4
+NUM_CLASSES = 7
+
+def cal_miou_total(result, gt):                ## resutl.shpae == gt.shape == [batch_size, 512, 512]    
+    tensor1 = torch.Tensor([1]).to(gt.device)
+    tensor0 = torch.Tensor([0]).to(gt.device)
+
+    res_i = torch.zeros((NUM_CLASSES)).to(result.device)
+    res_u = torch.zeros((NUM_CLASSES)).to(result.device)
+
+    for idx in range(NUM_CLASSES):
+        u = torch.sum(torch.where((result==idx) + (gt==idx), tensor1, tensor0)).item()
+        i = torch.sum(torch.where((result==idx) * (gt==idx), tensor1, tensor0)).item()
+
+        res_i[idx] += i
+        res_u[idx] += u
+
+    return res_i, res_u
 
 
 def main():
@@ -92,6 +130,7 @@ def main():
 
     # Model Initialization
     AugmentCE2P = networks.init_model(args.arch, num_classes=args.num_classes, pretrained=args.imagenet_pretrain)
+    # AugmentCE2P = t2tnet(num_classes=args.num_classes, pretrained='pretrain_model/81.7_T2T_ViTt_14.pth.tar')
     model = DataParallelModel(AugmentCE2P)
     model.cuda()
 
@@ -110,6 +149,7 @@ def main():
         start_epoch = checkpoint['epoch']
 
     SCHP_AugmentCE2P = networks.init_model(args.arch, num_classes=args.num_classes, pretrained=args.imagenet_pretrain)
+    # SCHP_AugmentCE2P = t2tnet(num_classes=args.num_classes, pretrained='pretrain_model/81.7_T2T_ViTt_14.pth.tar')
     schp_model = DataParallelModel(SCHP_AugmentCE2P)
     schp_model.cuda()
 
@@ -144,7 +184,16 @@ def main():
                                  std=IMAGE_STD),
         ])
 
-    train_dataset = LIPDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
+    # train_dataset = LIPDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
+    # train_dataset = PascalPartSegmentation(root=args.data_dir, split='train', resize_size=input_size)
+    # train_dataset = PascalPartSegmentation(root=args.data_dir, split='train', crop_size=input_size,
+    #                                    scale_factor=0.25,
+    #                                    rotation_factor=30, ignore_label=255, flip_prob=0.5, transform=transform,
+    #                                    void_pixels=3, return_edge=False)
+    train_dataset = SURREAL(root=args.data_dir, split='train', crop_size=input_size,
+                                       scale_factor=0.25,
+                                       rotation_factor=30, ignore_label=255, flip_prob=0.5, transform=transform,
+                                       void_pixels=3, return_edge=False)
     train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size * len(gpus),
                                    num_workers=16, shuffle=True, pin_memory=True, drop_last=True)
     print('Total training samples: {}'.format(len(train_dataset)))
@@ -165,11 +214,17 @@ def main():
         lr = lr_scheduler.get_lr()[0]
 
         model.train()
+        losses= 0
+        avg_miou = 0
+        total_i = torch.zeros((NUM_CLASSES)).cuda()
+        total_u = torch.zeros((NUM_CLASSES)).cuda()
         for i_iter, batch in enumerate(train_loader):
             i_iter += len(train_loader) * epoch
 
-            images, labels, _ = batch
+            # images, labels, _ = batch
+            images, labels = batch
             labels = labels.cuda(non_blocking=True)
+            # labels = labels.squeeze(dim=1)
 
             edges = generate_edge_tensor(labels)
             labels = labels.type(torch.cuda.LongTensor)
@@ -184,23 +239,37 @@ def main():
                     soft_parsing = []
                     soft_edge = []
                     for soft_pred in soft_preds:
-                        soft_parsing.append(soft_pred[0][-1])
-                        soft_edge.append(soft_pred[1][-1])
+                        # soft_parsing.append(soft_pred[0][-1])
+                        # soft_edge.append(soft_pred[1][-1])
+                        soft_parsing.append(soft_pred[0][-1].to(torch.device('cuda:0')))
+                        soft_edge.append(soft_pred[1][-1].to(torch.device('cuda:0')))
                     soft_preds = torch.cat(soft_parsing, dim=0)
                     soft_edges = torch.cat(soft_edge, dim=0)
+                    # soft_preds = torch.nn.parallel.gather(soft_parsing, model.device_ids)
+                    # soft_edges = torch.nn.parallel.gather(soft_edge, model.device_ids)
             else:
                 soft_preds = None
                 soft_edges = None
 
             loss = criterion(preds, [labels, edges, soft_preds, soft_edges], cycle_n)
+            losses = losses + loss
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+            losses = losses.detach().cpu()
+
             if i_iter % 100 == 0:
                 print('iter = {} of {} completed, lr = {}, loss = {}'.format(i_iter, total_iters, lr,
                                                                              loss.data.cpu().numpy()))
+        
+        avg_loss = losses / i_iter
+        # avg_miou = torch.sum(total_i / (total_u+epsilon)).item() / NUM_CLASSES
+
+        npt["train/loss"].log(avg_loss)
+        # npt["train/mIoU"].log(avg_miou)
+        
         if (epoch + 1) % (args.eval_epochs) == 0:
             schp.save_schp_checkpoint({
                 'epoch': epoch + 1,

@@ -25,7 +25,7 @@ BatchNorm2d = functools.partial(InPlaceABNSync, activation='none')
 affine_par = True
 
 pretrained_settings = {
-    'resnet101': {
+    'resnet': {
         'imagenet': {
             'input_space': 'BGR',
             'input_size': [3, 224, 224],
@@ -34,7 +34,7 @@ pretrained_settings = {
             'std': [0.225, 0.224, 0.229],
             'num_classes': 1000
         }
-    },
+    }
 }
 
 
@@ -42,6 +42,39 @@ def conv3x3(in_planes, out_planes, stride=1):
     "3x3 convolution with padding"
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
+
+
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None, fist_dilation=1, multi_grid=1):
+        super(BasicBlock, self).__init__()
+        self.conv1 = conv3x3(inplanes, planes, stride)
+        self.bn1 = BatchNorm2d(planes)
+        self.conv2 = conv3x3(planes, planes)
+        self.bn2 = BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=False)
+        self.relu_inplace = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out = out + residual
+        out = self.relu_inplace(out)
+
+        return out
 
 
 class Bottleneck(nn.Module):
@@ -213,14 +246,14 @@ class Decoder_Module(nn.Module):
     Parsing Branch Decoder Module.
     """
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, xt_dim=512, xl_dim=256):
         super(Decoder_Module, self).__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv2d(512, 256, kernel_size=1, padding=0, dilation=1, bias=False),
+            nn.Conv2d(xt_dim, 256, kernel_size=1, padding=0, dilation=1, bias=False),
             InPlaceABNSync(256)
         )
         self.conv2 = nn.Sequential(
-            nn.Conv2d(256, 48, kernel_size=1, stride=1, padding=0, dilation=1, bias=False),
+            nn.Conv2d(xl_dim, 48, kernel_size=1, stride=1, padding=0, dilation=1, bias=False),
             InPlaceABNSync(48)
         )
         self.conv3 = nn.Sequential(
@@ -263,10 +296,17 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=1, dilation=2, multi_grid=(1, 1, 1))
 
-        self.context_encoding = PSPModule(2048, 512)
+        if block == Bottleneck:
+            self.context_encoding = PSPModule(2048, 512)
 
-        self.edge = Edge_Module()
-        self.decoder = Decoder_Module(num_classes)
+            self.edge = Edge_Module()
+            self.decoder = Decoder_Module(num_classes)
+        elif block == BasicBlock:
+            self.context_encoding = PSPModule(512, 512)
+
+            self.edge = Edge_Module(in_fea=[64, 128, 256])
+            self.decoder = Decoder_Module(num_classes, xl_dim=64)
+
 
         self.fushion = nn.Sequential(
             nn.Conv2d(1024, 256, kernel_size=1, padding=0, dilation=1, bias=False),
@@ -327,11 +367,23 @@ def initialize_pretrained_model(model, settings, pretrained='./models/resnet101-
             i_parts = i.split('.')
             if not i_parts[0] == 'fc':
                 new_params['.'.join(i_parts[0:])] = saved_state_dict[i]
-        model.load_state_dict(new_params)
+        model.load_state_dict(new_params, strict=False)
 
 
 def resnet101(num_classes=20, pretrained='./models/resnet101-imagenet.pth'):
     model = ResNet(Bottleneck, [3, 4, 23, 3], num_classes)
-    settings = pretrained_settings['resnet101']['imagenet']
+    settings = pretrained_settings['resnet']['imagenet']
+    initialize_pretrained_model(model, settings, pretrained)
+    return model
+
+def resnet50(num_classes=20, pretrained='./models/resnet50-imagenet.pth'):
+    model = ResNet(Bottleneck, [3, 4, 6, 3], num_classes)
+    settings = pretrained_settings['resnet']['imagenet']
+    initialize_pretrained_model(model, settings, pretrained)
+    return model
+
+def resnet18(num_classes=20, pretrained='./models/resnet18-imagenet.pth'):
+    model = ResNet(BasicBlock, [2, 2, 2, 2], num_classes)
+    settings = pretrained_settings['resnet']['imagenet']
     initialize_pretrained_model(model, settings, pretrained)
     return model

@@ -1,0 +1,38 @@
+// {
+//     // Use IntelliSense to learn about possible attributes.
+//     // Hover to view descriptions of existing attributes.
+//     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "Python: Current File",
+//             "type": "python",
+//             "request": "launch",
+//             "program": "train.py",
+//             "console": "integratedTerminal",
+//             "justMyCode": false,
+//             "env": {"CUDA_VISIBLE_DEVICES": "1,2"},
+//             "args": ["--gpu", "1,2",
+//                       "--arch", "resnet18",
+//                       "--imagenet-pretrain", "./pretrain_model/resnet18-imagenet.pth"]
+//         }
+//     ]
+// }
+
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {"CUDA_VISIBLE_DEVICES": "1"},
+        }
+    ]
+}

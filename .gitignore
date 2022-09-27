@@ -3,6 +3,8 @@
 .neptune/
 data/
 log*/
-pretrain_model/
+pretrain_model/*T2T*
+pretrain_model/*50*
+pretrain_model/*101*
 slurm*
 result*/

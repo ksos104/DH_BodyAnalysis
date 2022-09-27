@@ -94,12 +94,14 @@ class SURREAL(data.Dataset):
 
         # Get pose annotation
         # parsing_anno = cv2.imread(parsing_anno_path, cv2.IMREAD_GRAYSCALE)
-        parsing_anno = np.array(Image.open(parsing_anno_path))
+        if self.dataset != 'no_gt':
+            parsing_anno = np.array(Image.open(parsing_anno_path))
 
         arr = np.empty(len(val_new), dtype=val_new.dtype)
         arr[val_old] = val_new
-        parsing_anno = arr[parsing_anno]
-        parsing_anno = np.uint8(parsing_anno)
+        if self.dataset != 'no_gt':
+            parsing_anno = arr[parsing_anno]
+            parsing_anno = np.uint8(parsing_anno)
 
         if self.dataset == 'train' or self.dataset == 'trainval':
             sf = self.scale_factor
@@ -160,24 +162,26 @@ class SURREAL(data.Dataset):
             'rotation': r
         }
 
-        if self.void_pixels > 0:
-            parsing_anno = add_void(parsing_anno, width=self.void_pixels, void_value=self.ignore_label)
-        label_parsing = cv2.warpAffine(
-            parsing_anno,
-            trans,
-            (int(self.crop_size[1]), int(self.crop_size[0])),
-            flags=cv2.INTER_NEAREST,
-            borderMode=cv2.BORDER_CONSTANT,
-            # borderValue=(self.ignore_label)
-            )
-
-        label_parsing = torch.from_numpy(label_parsing)
+        if self.dataset != 'no_gt':
+            if self.void_pixels > 0:
+                parsing_anno = add_void(parsing_anno, width=self.void_pixels, void_value=self.ignore_label)
+            label_parsing = cv2.warpAffine(
+                parsing_anno,
+                trans,
+                (int(self.crop_size[1]), int(self.crop_size[0])),
+                flags=cv2.INTER_NEAREST,
+                borderMode=cv2.BORDER_CONSTANT,
+                # borderValue=(self.ignore_label)
+                )
+            label_parsing = torch.from_numpy(label_parsing)
 
         if self.return_edge:
             return input, (label_parsing, edge_parsing)
 
         if self.dataset == 'test' or self.dataset == 'sample':
             return input, meta, label_parsing
+        elif self.dataset == 'no_gt':
+            return input, meta
         else:
             return input, label_parsing
 

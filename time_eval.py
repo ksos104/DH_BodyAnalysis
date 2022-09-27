@@ -6,7 +6,7 @@ import networks
 def main():
     model = networks.init_model('resnet18', 7, pretrained=None)
 
-    state_dict = torch.load('./log/checkpoint_20.pth.tar')['state_dict']
+    state_dict = torch.load('./log/checkpoint_100.pth.tar')['state_dict']
     from collections import OrderedDict
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():

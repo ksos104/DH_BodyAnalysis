@@ -5,8 +5,9 @@ import cv2
 
 def main():
     root = '/mnt/server8_hard3/msson/Self-Correction-Human-Parsing/result_for_gifs'
-    dir_list = ['vid0_real', 'vid0_gt', 'vid0_pred',
-                'vid1_real', 'vid1_gt', 'vid1_pred']
+    # dir_list = ['vid0_real', 'vid0_gt', 'vid0_pred',
+    #             'vid1_real', 'vid1_gt', 'vid1_pred']
+    dir_list = ['vid7_real', 'vid7_pred']
 
     for dir_name in dir_list:
         dir_path = os.path.join(root, dir_name)

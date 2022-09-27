@@ -47,7 +47,8 @@ def get_arguments():
     parser.add_argument("--arch", type=str, default='resnet18')
     # Data Preference
     # parser.add_argument("--data-dir", type=str, default='/mnt/server8_hard3/msson/datasets/Pascal Part Person')
-    parser.add_argument("--data-dir", type=str, default='/mnt/server14_hard0/msson/datasets/SURREAL/data/for_gifs')
+    # parser.add_argument("--data-dir", type=str, default='/mnt/server14_hard1/msson/datasets/SURREAL/data/for_gifs')
+    parser.add_argument("--data-dir", type=str, default='/mnt/server14_hard1/msson/datasets/Syn_body')
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--input-size", type=str, default='473,473')
     parser.add_argument("--num-classes", type=int, default=7)
@@ -56,8 +57,8 @@ def get_arguments():
     parser.add_argument("--random-scale", action="store_true")
     # Evaluation Preference
     parser.add_argument("--log-dir", type=str, default='./log')
-    parser.add_argument("--model-restore", type=str, default='./log_SURREAL_resnet18/checkpoint_100.pth.tar')
-    # parser.add_argument("--model-restore", type=str, default='./log_SURREAL/schp_6_checkpoint.pth.tar')
+    parser.add_argument("--model-restore", type=str, default='./log/checkpoint_100.pth.tar')
+    # parser.add_argument("--model-restore", type=str, default='./log_SURREAL_resnet18/checkpoint_100.pth.tar')
     # parser.add_argument("--model_restore", type=str, default="./log/exp-schp-201908270938-pascal-person-part.pth")
     parser.add_argument("--gpu", type=str, default='2', help="choose gpu device.")
     parser.add_argument("--save-results", action="store_true", default=True, help="whether to save the results.")
@@ -206,7 +207,8 @@ def main():
     #                                    scale_factor=0.25,
     #                                    rotation_factor=30, ignore_label=255, flip_prob=0.5, transform=transform,
     #                                    void_pixels=3, return_edge=False)
-    ppp_test_dataset = SURREAL(root=args.data_dir, split='test', crop_size=input_size, # [512,512]
+    split = 'no_gt'
+    ppp_test_dataset = SURREAL(root=args.data_dir, split=split, crop_size=input_size, # [512,512]
                                        scale_factor=0.25,
                                        rotation_factor=30, ignore_label=255, flip_prob=0.5, transform=transform,
                                        void_pixels=3, return_edge=False)
@@ -243,7 +245,11 @@ def main():
             #     image = image.cuda()
             #     seg = seg.cuda()
 
-            image, meta, seg = batch
+            if split != 'no_gt':
+                image, meta, seg = batch
+            else:
+                image, meta = batch
+
             if (len(image.shape) > 4):
                 image = image.squeeze()
             im_name = meta['name'][0]
@@ -286,20 +292,22 @@ def main():
                     seg_color[parsing[:,:,0] == key] = label_to_color[key]
                 seg_color = transforms.ToTensor()(seg_color.astype(np.uint8))
 
-                seg = seg.squeeze().cpu()
-                seg = np.stack([seg, seg, seg], axis=-1)
-                gt_color = np.zeros(seg.shape)
-                for key in label_to_color.keys():
-                    gt_color[seg[:,:,0] == key] = label_to_color[key]
-                gt_color = transforms.ToTensor()(gt_color.astype(np.uint8))
+                if split != 'no_gt':
+                    seg = seg.squeeze().cpu()
+                    seg = np.stack([seg, seg, seg], axis=-1)
+                    gt_color = np.zeros(seg.shape)
+                    for key in label_to_color.keys():
+                        gt_color[seg[:,:,0] == key] = label_to_color[key]
+                    gt_color = transforms.ToTensor()(gt_color.astype(np.uint8))
 
                 file_name = os.path.splitext(im_name)[0]
                 path = os.path.join(save_pth, file_name+'_{}.png'.format('real'))
                 save_image(inv_imgs, path)
-                path = os.path.join(save_pth, file_name+'_{}.png'.format('gt'))
-                save_image(gt_color, path)
                 path = os.path.join(save_pth, file_name+'_{}.png'.format('pred'))
                 save_image(seg_color, path)
+                if split != 'no_gt':
+                    path = os.path.join(save_pth, file_name+'_{}.png'.format('gt'))
+                    save_image(gt_color, path)
 
                 # real_frames.append(inv_imgs)
                 # gt_frames.append(gt_color)
@@ -307,12 +315,13 @@ def main():
 
             parsing_preds.append(parsing)
         # make_gif('real', real_frames, save_pth)
-        # make_gif('gt', gt_frames, save_pth)
         # make_gif('pred', pred_frames, save_pth)
+        # if split != 'no_gt':
+        #     make_gif('gt', gt_frames, save_pth)
 
     assert len(parsing_preds) == num_samples
-    mIoU = compute_mean_ioU(parsing_preds, scales, centers, args.num_classes, args.data_dir, input_size)
-    print(mIoU)
+    # mIoU = compute_mean_ioU(parsing_preds, scales, centers, args.num_classes, args.data_dir, input_size)
+    # print(mIoU)
     return
 
 def make_gif(type, frames, save_pth):

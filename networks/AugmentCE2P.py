@@ -124,7 +124,7 @@ class PSPModule(nn.Module):
         Zhao, Hengshuang, et al. *"Pyramid scene parsing network."*
     """
 
-    def __init__(self, features, out_features=512, sizes=(1, 2, 3, 6)):
+    def __init__(self, features, out_features=512, sizes=(1, 2, 4)):
         super(PSPModule, self).__init__()
 
         self.stages = []

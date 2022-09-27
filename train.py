@@ -52,7 +52,7 @@ def get_arguments():
     parser = argparse.ArgumentParser(description="Self Correction for Human Parsing")
 
     # Network Structure
-    parser.add_argument("--arch", type=str, default='resnet101')
+    parser.add_argument("--arch", type=str, default='resnet18')
     # Data Preference
     # parser.add_argument("--data-dir", type=str, default='/mnt/server8_hard3/msson/datasets/Pascal Part Person')
     parser.add_argument("--data-dir", type=str, default='/mnt/server14_hard0/msson/datasets/SURREAL/data/ref_cmu')
@@ -72,7 +72,7 @@ def get_arguments():
     parser.add_argument("--start-epoch", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--eval-epochs", type=int, default=10)
-    parser.add_argument("--imagenet-pretrain", type=str, default='./pretrain_model/resnet101-imagenet.pth')
+    parser.add_argument("--imagenet-pretrain", type=str, default='./pretrain_model/resnet18-imagenet.pth')
     parser.add_argument("--log-dir", type=str, default='./log')
     parser.add_argument("--model-restore", type=str, default='./log/checkpoint.pth.tar')
     parser.add_argument("--schp-start", type=int, default=100, help='schp start epoch')

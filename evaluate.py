@@ -46,8 +46,8 @@ def get_arguments():
     # Network Structure
     parser.add_argument("--arch", type=str, default='resnet18')
     # Data Preference
-    parser.add_argument("--data-dir", type=str, default='/mnt/server8_hard3/msson/datasets/Pascal Part Person')
-    # parser.add_argument("--data-dir", type=str, default='/mnt/server14_hard0/msson/datasets/SURREAL/data/ref_cmu')
+    # parser.add_argument("--data-dir", type=str, default='/mnt/server8_hard3/msson/datasets/Pascal Part Person')
+    parser.add_argument("--data-dir", type=str, default='/mnt/server14_hard1/msson/datasets/SURREAL/data/ref_cmu')
     # parser.add_argument("--data-dir", type=str, default='/mnt/server2_hard0/minji/DH/datasets/SURREAL/data/ref_cmu')    ## SURREAL multi people
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--input-size", type=str, default='473,473')
@@ -57,7 +57,7 @@ def get_arguments():
     parser.add_argument("--random-scale", action="store_true")
     # Evaluation Preference
     parser.add_argument("--log-dir", type=str, default='./log')
-    parser.add_argument("--model-restore", type=str, default='./log_SURREAL_resnet18/checkpoint_100.pth.tar')
+    parser.add_argument("--model-restore", type=str, default='./log/checkpoint_100.pth.tar')
     # parser.add_argument("--model-restore", type=str, default='./log_SURREAL/schp_6_checkpoint.pth.tar')
     # parser.add_argument("--model_restore", type=str, default="./log/exp-schp-201908270938-pascal-person-part.pth")
     parser.add_argument("--gpu", type=str, default='2', help="choose gpu device.")
@@ -205,14 +205,14 @@ def main():
     # Data loader
     # lip_test_dataset = LIPDataValSet(args.data_dir, 'val', crop_size=input_size, transform=transform, flip=args.flip)
     # ppp_test_dataset = PascalPartsPerson(root=args.data_dir, split='val', resize_size=input_size)
-    ppp_test_dataset = PascalPartSegmentation(root=args.data_dir, split='val', crop_size=input_size, # [512,512]
-                                       scale_factor=0.25,
-                                       rotation_factor=30, ignore_label=255, flip_prob=0.5, transform=transform,
-                                       void_pixels=3, return_edge=False)
-    # ppp_test_dataset = SURREAL(root=args.data_dir, split='test', crop_size=input_size, # [512,512]
+    # ppp_test_dataset = PascalPartSegmentation(root=args.data_dir, split='val', crop_size=input_size, # [512,512]
     #                                    scale_factor=0.25,
     #                                    rotation_factor=30, ignore_label=255, flip_prob=0.5, transform=transform,
     #                                    void_pixels=3, return_edge=False)
+    ppp_test_dataset = SURREAL(root=args.data_dir, split='test', crop_size=input_size, # [512,512]
+                                       scale_factor=0.25,
+                                       rotation_factor=30, ignore_label=255, flip_prob=0.5, transform=transform,
+                                       void_pixels=3, return_edge=False)
     num_samples = len(ppp_test_dataset)
     print('Totoal testing sample numbers: {}'.format(num_samples))
     testloader = data.DataLoader(ppp_test_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True)
